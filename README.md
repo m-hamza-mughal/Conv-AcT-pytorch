@@ -1,2 +1,5 @@
-# Conv-AcT-pytorch
-Vision Transformer Based Action Recognition
+# HLCV Project
+
+Packaged code coming soon. For now, use notebook in the notebooks folder.
+
+
