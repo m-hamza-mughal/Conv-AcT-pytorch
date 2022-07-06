@@ -10,6 +10,8 @@ __pycache__/
 datasets/*
 !datasets/.gitignore
 
+*.mp4
+
 # Distribution / packaging
 .Python
 build/
