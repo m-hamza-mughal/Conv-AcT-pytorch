@@ -8,6 +8,7 @@ __pycache__/
 
 # dataset
 datasets/*
+!datasets/.gitignore
 
 # Distribution / packaging
 .Python
