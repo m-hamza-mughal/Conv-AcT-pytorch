@@ -1,12 +1,22 @@
+#!/usr/bin/env python
 import torch
 from tqdm import tqdm
 import copy
+import logging
+import sys
+
+
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+torch.manual_seed(0)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
 
 def train_model(model, train_loader, val_loader, model_name: str, num_epochs:int, learning_rate: float, finetune: bool = False):
     # Training
     criterion = torch.nn.CrossEntropyLoss(reduction='mean')
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate) #, weight_decay=0.1)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [80, 140, 180, 220, 250], gamma=0.75, verbose=True)
     device = next(model.parameters()).device
 
     best_model = None
@@ -40,12 +50,15 @@ def train_model(model, train_loader, val_loader, model_name: str, num_epochs:int
                 t_total += len(y)
                 
                 count+=1
-                #if count>3000:
-                #    break
+                if count%1000==0:
+                   logging.info(f"Iter {count}/{len(train_loader)} Train Loss: {train_loss/count} Train accuracy: {t_correct / t_total * 100:.2f}%")
+            
             train_acc = t_correct / t_total * 100
             train_loss = train_loss/count
-            print(f"Epoch {epoch + 1}/{num_epochs} train loss: {train_loss:.2f}")
-            print(f"Train accuracy: {train_acc:.2f}%")
+            logging.info(f"Epoch {epoch + 1}/{num_epochs} train loss: {train_loss:.2f}")
+            logging.info(f"Train accuracy: {train_acc:.2f}%")
+
+            scheduler.step()
 
             val_loss, val_acc = evaluate_model(model, val_loader, criterion)
 
@@ -54,7 +67,7 @@ def train_model(model, train_loader, val_loader, model_name: str, num_epochs:int
                 best_model = copy.deepcopy(model)
                 
                 best_val_acc = val_acc
-                print(f"Best accuracy: {best_val_acc}")
+                logging.info(f"Best accuracy: {best_val_acc}")
                 torch.save({
                     'epoch': epoch,
                     'model_state_dict': best_model.state_dict(),
@@ -96,8 +109,8 @@ def evaluate_model(model, data_loader, criterion):
         
         val_acc = v_correct / v_total * 100
         
-    print(f"Evaluation loss: {val_loss/count:.2f}")
-    print(f"Evaluation accuracy: {val_acc:.2f}%")
+    logging.info(f"Evaluation loss: {val_loss/count:.2f}")
+    logging.info(f"Evaluation accuracy: {val_acc:.2f}%")
     return val_loss/count, val_acc
         
 

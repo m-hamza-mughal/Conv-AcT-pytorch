@@ -11,11 +11,15 @@ datasets/*
 !datasets/.gitignore
 
 #logs
+model_cache/
+
 logs/*
 !logs/.gitignore
 
 *.mp4
 
+*.zip
+*.pt
 # Distribution / packaging
 .Python
 build/

@@ -1,9 +1,13 @@
+#!/usr/bin/env python
 import torch
 from torch import nn, Tensor
 from torchvision import models
 import math
+from torchvision.models.vision_transformer import Encoder
 
 torch.manual_seed(0)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
 class PatchEmbedding(nn.Module):
     def __init__(self, d_model: int, learnable=False, dropout: float = 0.1, max_len: int = 15):
@@ -37,7 +41,7 @@ class PatchEmbedding(nn.Module):
 class FeatureExtractor(nn.Module):
     def __init__(self, d_model: int, model_name: str, model_weights: str = 'DEFAULT'):
         super(FeatureExtractor, self).__init__()
-        assert model_name in ['efficientnet_v2_s', 'efficientnet_v2_m', 'efficientnet_v2_l', 'inception_v3', 'wide_resnet50_2', 'wide_resnet101_2']
+        # assert model_name in ['efficientnet_v2_s', 'efficientnet_v2_m', 'efficientnet_v2_l', 'inception_v3', 'wide_resnet50_2', 'wide_resnet101_2']
         self.model = getattr(models, model_name)(weights=model_weights)
         
         if model_name in ['efficientnet_v2_s', 'efficientnet_v2_m', 'efficientnet_v2_l']:
@@ -52,9 +56,6 @@ class FeatureExtractor(nn.Module):
         """
         b, f, _, _, _ = x.shape
         x = x.view(b*f, *x.size()[2:])
-        # features = [self.model(x[:, i]).unsqueeze(1) for i in range(f)]
-        # x = torch.cat(features, dim=1)
-        # assert x.size(1) == f
         x = self.model(x)
         x = x.view(b, f, *x.size()[1:])
 
@@ -79,18 +80,26 @@ class ConvAcTransformer(nn.Module):
         self.learnable_pe = learnable_pe
 
         
-        self.feature_extract = FeatureExtractor(self.d_model, self.feature_extractor_name, model_weights=None)
+        self.feature_extract = FeatureExtractor(self.d_model, self.feature_extractor_name, model_weights='DEFAULT')
         self.patch_embed = PatchEmbedding(self.d_model, learnable=self.learnable_pe, max_len=self.num_frames)
 
-        transformer_encoder_layer = nn.TransformerEncoderLayer(d_model=self.d_model,
-                                                                nhead=self.attention_heads,
-                                                                norm_first=True,
-                                                                activation='gelu')
-        self.transformer_encoder = nn.TransformerEncoder(transformer_encoder_layer,
-                                                         self.num_layers,
-                                                         norm=nn.LayerNorm(self.d_model))
+        # transformer_encoder_layer = nn.TransformerEncoderLayer(d_model=self.d_model,
+        #                                                         nhead=self.attention_heads,
+        #                                                         norm_first=True,
+        #                                                         activation='gelu')
+        # self.transformer_encoder = nn.TransformerEncoder(transformer_encoder_layer,
+        #                                                  self.num_layers,
+        #                                                  norm=nn.LayerNorm(self.d_model))
 
+        self.transformer_encoder = Encoder(seq_length=self.num_frames+1,
+                                           num_layers=self.num_layers,
+                                           num_heads=self.attention_heads,
+                                           hidden_dim=self.d_model, 
+                                           mlp_dim=self.d_model,
+                                           dropout=0.4, attention_dropout=0.4)
+        self.dropout = nn.Dropout(0.4)
         self.classification_head = nn.Linear(self.d_model, self.num_classes)
+        
 
     def forward(self, x: Tensor) -> Tensor:
         """
@@ -110,7 +119,7 @@ class ConvAcTransformer(nn.Module):
         x = x[:, 0, :]
 
         # classification head
-        x = self.classification_head(x)
+        x = self.classification_head(self.dropout(x))
 
         return x
 
@@ -121,17 +130,17 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     test_tensor = torch.randn(4, 3, 3, 128, 128, dtype=torch.float32).to(device)
     model = ConvAcTransformer(
-        d_model=256, 
+        d_model=512, 
         attention_heads=2, 
         num_layers=2, 
         num_classes=50, 
         num_frames=3, 
-        feature_extractor_name='efficientnet_v2_s', 
+        feature_extractor_name='resnet18', 
         learnable_pe=False
     )
     print(model)
     model = model.to(device)
     out = model(test_tensor)
     print(out.size(), next(model.parameters()).device)
-    diff = out.mean().backward()
+    # diff = out.mean().backward()
     print("done")

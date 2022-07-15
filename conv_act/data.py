@@ -1,19 +1,29 @@
+#!/usr/bin/env python
 from torchvision.datasets import UCF101
 from torchvision import transforms
 import torchvision
 import random
 import torch
+import logging
+import sys
 
 
-torchvision.set_video_backend('video_reader')
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# torchvision.set_video_backend('video_reader')
+torch.manual_seed(0)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 random.seed(0)
 
+mean = [0.485, 0.456, 0.406] 
+std = [0.229, 0.224, 0.225]
 
-def load_dataset(video_path, label_dir, num_samples=None, video_dim=128, chunk_length=30, num_frames=15, batch_size=16):
+def load_dataset(video_path, label_dir, num_samples=-1, num_workers=8, video_dim=128, chunk_length=60, num_frames=20, batch_size=32):
+    
+    
     tfs = transforms.Compose([
         transforms.Lambda(lambda x: x.permute(0, 3, 1, 2)),
         transforms.Lambda(lambda x: x[::chunk_length//num_frames]), # skip second frame
-        transforms.RandomHorizontalFlip(p=0.5),
         # transforms.RandomResizedCrop(256, scale=(0.8, 1.0)),
         # transforms.CenterCrop(60),
         # transforms.RandomRotation(degrees=10, interpolation=transforms.InterpolationMode.BILINEAR),
@@ -23,24 +33,35 @@ def load_dataset(video_path, label_dir, num_samples=None, video_dim=128, chunk_l
         # transforms.RandomPerspective(distortion_scale=0.1),
         # transforms.AugMix(),
         # transforms.RandAugment(),
-
+        # transforms.Lambda(lambda x: x.permute(3, 0, 1, 2)), # THWC -> CTHW
+        # transforms.Lambda(lambda x: x/255.0),
+        #NormalizeVideo(mean, std),
+        #ShortSideScale(size=side_size),
+        # CenterCropVideo(crop_size=(crop_size, crop_size)),
+        # transforms.Lambda(lambda x: x.permute(1, 0, 2, 3)), # CTHW -> TCHW
+        transforms.Resize((video_dim, video_dim)),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.AugMix(),
         transforms.Lambda(lambda x: x / 255.),
         transforms.Lambda(lambda x: x.float()),
+        
     ])
-    train_dataset = UCF101(root = video_path, annotation_path = label_dir, transform=tfs ,_video_width=video_dim, _video_height=video_dim, train=True, frames_per_clip=chunk_length)
-    # valtest_dataset = UCF101(root = video_path, annotation_path = label_dir, transform=transforms ,_video_width=video_dim, _video_height=video_dim, train=False, frames_per_clip=frame_length)
+    train_dataset = UCF101(root = video_path, annotation_path = label_dir, transform=tfs, train=True, frames_per_clip=chunk_length)  # ,_video_width=video_dim, _video_height=video_dim, 
+    valtest_dataset = UCF101(root = video_path, annotation_path = label_dir, transform=tfs, train=False, frames_per_clip=chunk_length) #  ,_video_width=video_dim, _video_height=video_dim, 
 
-    if num_samples is not None:
-        assert num_samples >= 3000
+    if num_samples != -1:
+        # assert num_samples >= 2000
         train_indices = random.sample(list(range(len(train_dataset))), num_samples)
-        # val_indices = random.sample(list(range(len(valtest_dataset))), len(train_dataset)//30)
+        valtest_indices = random.sample(list(range(len(valtest_dataset))), int(num_samples*0.2))
     else:
         train_indices = list(range(len(train_dataset)))
+        valtest_indices = list(range(len(valtest_dataset)))
+        random.shuffle(valtest_indices)
 
     # Warp into Subsets
-    train_subset = torch.utils.data.Subset(train_dataset, train_indices[:-2000])
-    test_subset = torch.utils.data.Subset(train_dataset, train_indices[-1000:])
-    val_subset = torch.utils.data.Subset(train_dataset, train_indices[-2000:-1000])
+    train_subset = torch.utils.data.Subset(train_dataset, train_indices)
+    test_subset = torch.utils.data.Subset(valtest_dataset, valtest_indices[len(valtest_indices)//2:])
+    val_subset = torch.utils.data.Subset(valtest_dataset, valtest_indices[:len(valtest_indices)//2])
 
     def custom_collate(batch):
         # skip audio data
@@ -51,33 +72,41 @@ def load_dataset(video_path, label_dir, num_samples=None, video_dim=128, chunk_l
 
    
     train_loader = torch.utils.data.DataLoader(train_subset, batch_size=batch_size, shuffle=True,
-                                            num_workers=2, pin_memory=True,
+                                            num_workers=num_workers, pin_memory=True,
                                             collate_fn=custom_collate)
     val_loader = torch.utils.data.DataLoader(val_subset, batch_size=batch_size, shuffle=True,
-                                            num_workers=2, pin_memory=True,
+                                            num_workers=num_workers, pin_memory=True,
                                             collate_fn=custom_collate)
     test_loader = torch.utils.data.DataLoader(test_subset, batch_size=batch_size, shuffle=True,
-                                            num_workers=2,
+                                            num_workers=num_workers,
                                             collate_fn=custom_collate)
 
-    print(f"Total number of train samples: {len(train_subset)}")
-    print(f"Total number of test samples: {len(test_subset)}")
-    print(f"Total number of val samples: {len(val_subset)}")
-    print(f"Total number of (train) batches: {len(train_loader)}")
-    print(f"Total number of (test) batches: {len(test_loader)}")
-    print(f"Total number of (val) batches: {len(val_loader)}")
+    logging.info(f"Total number of train samples: {len(train_subset)}")
+    logging.info(f"Total number of test samples: {len(test_subset)}")
+    logging.info(f"Total number of val samples: {len(val_subset)}")
+    logging.info(f"Total number of (train) batches: {len(train_loader)}")
+    logging.info(f"Total number of (test) batches: {len(test_loader)}")
+    logging.info(f"Total number of (val) batches: {len(val_loader)}")
 
     return train_loader, val_loader, test_loader
 
 if __name__=="__main__":
     train_loader, val_loader, test_loader = load_dataset(
-        video_path="../datasets/UCF50/",
-        label_dir="../datasets/ucf50TrainTestlist/",
+        video_path="../datasets/UCF10/",
+        label_dir="../datasets/ucf10TrainTestlist/",
         video_dim=128, 
-        chunk_length=30, 
-        num_frames=15,
-        batch_size=16
+        chunk_length=60, 
+        num_frames=20,
+        batch_size=32,
+        num_samples=-1,
+        num_workers=2
     )
     train_iter = iter(train_loader)
     x, y = next(train_iter)
-    print("size of batch: ", x.size(), y.size())
+    print("size of train batch: ", x.size(), y.size())
+    val_iter = iter(val_loader)
+    x, y = next(val_iter)
+    print("size of val batch: ", x.size(), y.size())
+    test_iter = iter(test_loader)
+    x, y = next(test_iter)
+    print("size of test batch: ", x.size(), y.size())
