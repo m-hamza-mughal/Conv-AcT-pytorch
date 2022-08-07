@@ -38,15 +38,38 @@ class PatchEmbedding(nn.Module):
         x = x + self.pe #[:, :x.size(1), :]
         return self.dropout(x)
 
+class BaselineMLP(nn.Module):
+    def __init__(self, d_model: int):
+        super(BaselineMLP, self).__init__()
+        self.linear = nn.Linear(128*128*3, 1024)
+        self.gelu = nn.GELU()
+        self.linear2 = nn.Linear(1024, d_model)
+        self.gelu2 = nn.GELU()
+
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Args:
+            x: Tensor, shape [batch_size, n_frames, channels, height, width]
+        """
+        b, f, _, _, _ = x.shape
+        x = x.view(b, f, -1)
+        x = self.gelu(self.linear(x))
+        x = self.gelu2(self.linear2(x))
+
+        return x
+
 class FeatureExtractor(nn.Module):
     def __init__(self, d_model: int, model_name: str, model_weights: str = 'DEFAULT'):
         super(FeatureExtractor, self).__init__()
         # assert model_name in ['efficientnet_v2_s', 'efficientnet_v2_m', 'efficientnet_v2_l', 'inception_v3', 'wide_resnet50_2', 'wide_resnet101_2']
         self.model = getattr(models, model_name)(weights=model_weights)
+        self.d_model = None
         
-        if model_name in ['efficientnet_v2_s', 'efficientnet_v2_m', 'efficientnet_v2_l']:
-            self.model.classifier = nn.Linear(in_features=self.model.classifier[1].in_features, out_features = d_model)
+        if model_name in ['efficientnet_v2_s', 'efficientnet_v2_m', 'efficientnet_v2_l', 'convnext_base', 'convnext_small', 'convnext_large']:
+            self.d_model = self.model.classifier[-1].in_features
+            self.model.classifier[-1] = nn.Linear(in_features=self.model.classifier[-1].in_features, out_features = d_model)
         else:
+            self.d_model = self.model.fc.in_features
             self.model.fc = nn.Linear(in_features=self.model.fc.in_features ,out_features=d_model)
 
     def forward(self, x: Tensor) -> Tensor:
@@ -81,7 +104,7 @@ class ConvAcTransformer(nn.Module):
 
         
         self.feature_extract = FeatureExtractor(self.d_model, self.feature_extractor_name, model_weights='DEFAULT')
-        self.patch_embed = PatchEmbedding(self.d_model, learnable=self.learnable_pe, max_len=self.num_frames)
+        self.patch_embed = PatchEmbedding(self.d_model, learnable=self.learnable_pe, max_len=self.num_frames, dropout=0.4)
 
         # transformer_encoder_layer = nn.TransformerEncoderLayer(d_model=self.d_model,
         #                                                         nhead=self.attention_heads,
