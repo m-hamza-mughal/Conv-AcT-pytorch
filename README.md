@@ -7,7 +7,7 @@ For experimentation, use notebooks folder.
 
 Basic Usage for package:
 
-```python main.py <config/path-to-config-file.yaml>```
+```python main.py --config <config/path-to-config-file.yaml> --pipeline <train|test>```
 
 Please review config files for training settings
 
