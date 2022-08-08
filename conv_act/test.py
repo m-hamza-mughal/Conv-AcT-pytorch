@@ -60,7 +60,7 @@ def test_model(model, data_loader, model_path):
         
         val_acc_top1 = v_correct / v_total * 100
 
-    logging.info(f"Top1 and Top5 accuracy {accs/batch}") 
-    logging.info(f"Testing loss: {val_loss/batch:.2f}")
-    logging.info(f"Testing Top-1 accuracy: {val_acc_top1:.2f}%")
+    print(f"Top1 and Top5 accuracy {accs/batch}") 
+    print(f"Testing loss: {val_loss/batch:.2f}")
+    print(f"Testing Top-1 accuracy: {val_acc_top1:.2f}%")
     return val_loss/batch, val_acc_top1
