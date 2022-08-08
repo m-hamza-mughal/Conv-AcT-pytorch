@@ -18,7 +18,7 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 os.environ['TORCH_HOME'] = "model_cache/"
 
-def main(config, pipeline):
+def main(config, pipeline, log_dir):
 
     # data pipeline
     logging.info("Loading Data")
@@ -65,7 +65,7 @@ def main(config, pipeline):
         test_loss, test_acc = test_model(
             model,
             test_loader, 
-            model_path=config["MODEL_PATH"]
+            model_path=os.path.join(log_dir, config["MODEL_PATH"])
         )
         logging.info(f"Test Loss: {test_loss}, Test Accuracy: {test_acc}")
     else:
@@ -74,7 +74,7 @@ def main(config, pipeline):
             model,
             train_loader, 
             val_loader, 
-            model_name=config["MODEL_PATH"], 
+            model_path=os.path.join(log_dir, config["MODEL_PATH"]),
             num_epochs=config["N_EPOCHS"],
             learning_rate=config["LR"],
             finetune=config["FINETUNE"]
@@ -91,14 +91,16 @@ if __name__=='__main__':
     args = parser.parse_args()
     config = read_yaml(args.config)
 
+    log_dir = os.path.dirname(os.path.dirname(args.config))
+
     logging.info("Using device: cuda" if torch.cuda.is_available() else "Using device: cpu")
 
     if args.pipeline == 'test':
-        dir_path = os.path.join("./logs/", config["MODEL_PATH"])
-        assert os.path.exists(dir_path), "Experiment directory must be in ./logs/"
+        dir_path = os.path.join(log_dir, config["MODEL_PATH"])
+        assert os.path.exists(dir_path), f"Experiment directory must be in {log_dir}"
         assert os.path.exists(os.path.join(dir_path, "best_model.pt")), "No best model in the folder"
     else:
-        dir_path = os.path.join("./logs/", config["MODEL_PATH"])
+        dir_path = os.path.join(log_dir, config["MODEL_PATH"])
         if not os.path.exists(dir_path):
             logging.info("Making dir")
             os.mkdir(dir_path)
@@ -107,4 +109,4 @@ if __name__=='__main__':
         
         shutil.copyfile(args.config, os.path.join(dir_path, "config.yaml"))
 
-    main(config, args.pipeline)
+    main(config, args.pipeline, log_dir)

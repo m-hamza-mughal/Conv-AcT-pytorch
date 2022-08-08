@@ -12,7 +12,7 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 
-def train_model(model, train_loader, val_loader, model_name: str, num_epochs:int, learning_rate: float, finetune: bool = False):
+def train_model(model, train_loader, val_loader, model_path: str, num_epochs:int, learning_rate: float, finetune: bool = False):
     # Training
     criterion = torch.nn.CrossEntropyLoss(reduction='mean')
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.9)
@@ -23,7 +23,7 @@ def train_model(model, train_loader, val_loader, model_name: str, num_epochs:int
     best_val_acc = 0
 
     if finetune:
-        checkpoint = torch.load(f"logs/{model_name}/best_model.pt", map_location=device)
+        checkpoint = torch.load(f"{model_path}/best_model.pt", map_location=device)
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
@@ -77,7 +77,7 @@ def train_model(model, train_loader, val_loader, model_name: str, num_epochs:int
                     'epoch': epoch,
                     'model_state_dict': best_model.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict()
-                }, f"logs/{model_name}/best_model.pt")
+                }, f"{model_path}/best_model.pt")
                 
                 best_model = best_model.cpu()
                 torch.cuda.empty_cache()

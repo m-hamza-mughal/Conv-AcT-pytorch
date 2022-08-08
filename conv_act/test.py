@@ -37,7 +37,7 @@ def test_model(model, data_loader, model_path):
     # count = 0
 
     logging.info(f"Loading checkpoint at {model_path}")
-    checkpoint = torch.load(f"logs/{model_path}/best_model.pt", map_location=device)
+    checkpoint = torch.load(f"{model_path}/best_model.pt", map_location=device)
     model.load_state_dict(checkpoint['model_state_dict'])
 
     logging.info("Testing")
