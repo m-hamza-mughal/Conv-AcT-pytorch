@@ -59,18 +59,18 @@ class BaselineMLP(nn.Module):
         return x
 
 class FeatureExtractor(nn.Module):
-    def __init__(self, model_name: str, model_weights: str = 'DEFAULT'): # d_model: int, ):
+    def __init__(self, d_model: int, model_name: str, model_weights: str = 'DEFAULT'): #  ):
         super(FeatureExtractor, self).__init__()
         # assert model_name in ['efficientnet_v2_s', 'efficientnet_v2_m', 'efficientnet_v2_l', 'inception_v3', 'wide_resnet50_2', 'wide_resnet101_2']
         self.model = getattr(models, model_name)(weights=model_weights)
         self.d_model = None
         
         if model_name in ['efficientnet_v2_s', 'efficientnet_v2_m', 'efficientnet_v2_l', 'convnext_base', 'convnext_small', 'convnext_large']:
-            self.d_model = self.model.classifier[-1].in_features
-            self.model.classifier[-1] = nn.Identity() # nn.Linear(in_features=self.model.classifier[-1].in_features, out_features = d_model)
+            # self.d_model = self.model.classifier[-1].in_features
+            self.model.classifier[-1] = nn.Linear(in_features=self.model.classifier[-1].in_features, out_features = d_model)
         else:
-            self.d_model = self.model.fc.in_features
-            self.model.fc = nn.Identity() # nn.Linear(in_features=self.model.fc.in_features ,out_features=d_model)
+            # self.d_model = self.model.fc.in_features
+            self.model.fc = nn.Linear(in_features=self.model.fc.in_features ,out_features=d_model)
 
     def forward(self, x: Tensor) -> Tensor:
         """
@@ -87,6 +87,7 @@ class FeatureExtractor(nn.Module):
 
 class ConvAcTransformer(nn.Module):
     def __init__(self, 
+                 d_model: int,
                  attention_heads: int,
                  num_layers: int,
                  num_classes: int,
@@ -94,9 +95,8 @@ class ConvAcTransformer(nn.Module):
                  drop_p: int,
                  feature_extractor_name: str,
                  learnable_pe: bool = False): 
-                #  d_model: int,
         super(ConvAcTransformer, self).__init__()
-        # self.d_model = d_model
+        self.d_model = d_model
         self.feature_extractor_name = feature_extractor_name
         self.attention_heads = attention_heads
         self.num_classes = num_classes
@@ -106,8 +106,8 @@ class ConvAcTransformer(nn.Module):
         self.drop_p = drop_p
 
         
-        self.feature_extract = FeatureExtractor(self.feature_extractor_name, model_weights='DEFAULT')
-        self.patch_embed = PatchEmbedding(self.feature_extract.d_model, learnable=self.learnable_pe, max_len=self.num_frames, dropout=self.drop_p)
+        self.feature_extract = FeatureExtractor(self.d_model, self.feature_extractor_name, model_weights='DEFAULT')
+        self.patch_embed = PatchEmbedding(self.d_model, learnable=self.learnable_pe, max_len=self.num_frames, dropout=self.drop_p)
 
         # transformer_encoder_layer = nn.TransformerEncoderLayer(d_model=self.d_model,
         #                                                         nhead=self.attention_heads,
@@ -120,12 +120,12 @@ class ConvAcTransformer(nn.Module):
         self.transformer_encoder = Encoder(seq_length=self.num_frames+1,
                                            num_layers=self.num_layers,
                                            num_heads=self.attention_heads,
-                                           hidden_dim=self.feature_extract.d_model, 
-                                           mlp_dim=self.feature_extract.d_model,
+                                           hidden_dim=self.d_model, 
+                                           mlp_dim=self.d_model,
                                            dropout=self.drop_p, attention_dropout=self.drop_p)
         
         self.dropout = nn.Dropout(self.drop_p)
-        self.classification_head = nn.Linear(self.feature_extract.d_model, self.num_classes)
+        self.classification_head = nn.Linear(self.d_model, self.num_classes)
         
 
     def forward(self, x: Tensor) -> Tensor:
@@ -157,10 +157,12 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     test_tensor = torch.randn(4, 3, 3, 128, 128, dtype=torch.float32).to(device)
     model = ConvAcTransformer(
+        d_model=128,
         attention_heads=2, 
         num_layers=2, 
         num_classes=50, 
         num_frames=3, 
+        drop_p=0.1,
         feature_extractor_name='resnet18', 
         learnable_pe=False
     )

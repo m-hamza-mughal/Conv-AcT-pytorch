@@ -50,6 +50,7 @@ def main(config, pipeline, log_dir):
     logging.info("Loading Model")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = ConvAcTransformer(
+        d_model=config['FEATURE_DIM'],
         attention_heads=config['NUM_ATT_HEADS'], 
         num_layers=config['NUM_TRANSFORMER_LAYERS'], 
         num_classes=config['NUM_CLASSES'], 
@@ -88,10 +89,11 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Train and Evaluation Pipeline')
     parser.add_argument('--config', default='config/ucf50_128_wrn50.yaml', type=str, help='Config path', required=False)
     parser.add_argument('--pipeline', default='train', type=str, help='Specify whether to run training pipeline or testing', required=False)
+    parser.add_argument('--logdir', default='logs/', type=str, help='Specify log directory', required=False)
     args = parser.parse_args()
     config = read_yaml(args.config)
 
-    log_dir = os.path.dirname(os.path.dirname(args.config))
+    log_dir = args.logdir
 
     logging.info("Using device: cuda" if torch.cuda.is_available() else "Using device: cpu")
 
