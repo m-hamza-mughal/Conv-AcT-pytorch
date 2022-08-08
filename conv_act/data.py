@@ -15,39 +15,88 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 random.seed(0)
 
-mean = [0.485, 0.456, 0.406] 
-std = [0.229, 0.224, 0.225]
+# mean = [0.485, 0.456, 0.406] 
+# std = [0.229, 0.224, 0.225]
+
+def custom_collate(batch):
+    # skip audio data
+    filtered_batch = []
+    for video, _, label in batch:
+        filtered_batch.append((video, label))
+    return torch.utils.data.dataloader.default_collate(filtered_batch)
+
+def load_test_dataset(video_path, label_dir, num_samples=-1, num_workers=8, video_dim=128, chunk_length=60, num_frames=20, batch_size=32):
+    test_tfs = transforms.Compose([
+        transforms.Lambda(lambda x: x.permute(0, 3, 1, 2)),
+        transforms.Lambda(lambda x: x[::chunk_length//num_frames]), # skip frame
+        transforms.Resize((video_dim, video_dim)),
+        transforms.Lambda(lambda x: x.float()),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        
+    ])
+    test_dataset = UCF101(root = video_path, annotation_path = label_dir, transform=test_tfs, train=False, frames_per_clip=chunk_length) #  ,_video_width=video_dim, _video_height=video_dim, 
+
+    if num_samples != -1:
+        # assert num_samples >= 2000
+        test_indices = random.sample(list(range(len(test_dataset))), int(num_samples))
+    else:
+        test_indices = list(range(len(test_dataset)))
+        random.shuffle(test_indices)
+
+    
+    test_subset = torch.utils.data.Subset(test_dataset, test_indices)
+
+    test_loader = torch.utils.data.DataLoader(test_subset, batch_size=batch_size, shuffle=True,
+                                            num_workers=num_workers,
+                                            collate_fn=custom_collate)
+
+    logging.info(f"Total number of test samples: {len(test_subset)}")
+    logging.info(f"Total number of (test) batches: {len(test_loader)}")
+    
+    return test_loader
+
 
 def load_dataset(video_path, label_dir, num_samples=-1, num_workers=8, video_dim=128, chunk_length=60, num_frames=20, batch_size=32):
     
     
-    tfs = transforms.Compose([
+    train_tfs = transforms.Compose([
         transforms.Lambda(lambda x: x.permute(0, 3, 1, 2)),
         transforms.Lambda(lambda x: x[::chunk_length//num_frames]), # skip second frame
-        # transforms.RandomResizedCrop(256, scale=(0.8, 1.0)),
+        transforms.Resize((video_dim, video_dim)),
+        transforms.RandomResizedCrop(video_dim, scale=(0.8, 1.0)),
         # transforms.CenterCrop(60),
         # transforms.RandomRotation(degrees=10, interpolation=transforms.InterpolationMode.BILINEAR),
         # transforms.GrayScale(),
         # transforms.GaussianBlur(kernel_size=3),
-        # transforms.ColorJitter(brightness=.2, hue=.1),
+        # transforms.ColorJitter(brightness=.01, contrast=.01, saturation=.01, hue=.01),
         # transforms.RandomPerspective(distortion_scale=0.1),
         # transforms.AugMix(),
         # transforms.RandAugment(),
         # transforms.Lambda(lambda x: x.permute(3, 0, 1, 2)), # THWC -> CTHW
         # transforms.Lambda(lambda x: x/255.0),
-        #NormalizeVideo(mean, std),
-        #ShortSideScale(size=side_size),
+        # NormalizeVideo(mean, std),
+        # ShortSideScale(size=side_size),
         # CenterCropVideo(crop_size=(crop_size, crop_size)),
         # transforms.Lambda(lambda x: x.permute(1, 0, 2, 3)), # CTHW -> TCHW
-        transforms.Resize((video_dim, video_dim)),
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.AugMix(),
-        transforms.Lambda(lambda x: x / 255.),
+        # transforms.RandAugment(),
         transforms.Lambda(lambda x: x.float()),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        # transforms.Lambda(lambda x: x / 255.),
         
     ])
-    train_dataset = UCF101(root = video_path, annotation_path = label_dir, transform=tfs, train=True, frames_per_clip=chunk_length)  # ,_video_width=video_dim, _video_height=video_dim, 
-    valtest_dataset = UCF101(root = video_path, annotation_path = label_dir, transform=tfs, train=False, frames_per_clip=chunk_length) #  ,_video_width=video_dim, _video_height=video_dim, 
+    val_tfs = transforms.Compose([
+        transforms.Lambda(lambda x: x.permute(0, 3, 1, 2)),
+        transforms.Lambda(lambda x: x[::chunk_length//num_frames]), # skip second frame
+        transforms.Resize((video_dim, video_dim)),
+        transforms.Lambda(lambda x: x.float()),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        # transforms.Lambda(lambda x: x / 255.),s
+        
+    ])
+    train_dataset = UCF101(root = video_path, annotation_path = label_dir, transform=train_tfs, train=True, frames_per_clip=chunk_length)  # ,_video_width=video_dim, _video_height=video_dim, 
+    valtest_dataset = UCF101(root = video_path, annotation_path = label_dir, transform=val_tfs, train=False, frames_per_clip=chunk_length) #  ,_video_width=video_dim, _video_height=video_dim, 
 
     if num_samples != -1:
         # assert num_samples >= 2000
@@ -62,13 +111,6 @@ def load_dataset(video_path, label_dir, num_samples=-1, num_workers=8, video_dim
     train_subset = torch.utils.data.Subset(train_dataset, train_indices)
     test_subset = torch.utils.data.Subset(valtest_dataset, valtest_indices[len(valtest_indices)//2:])
     val_subset = torch.utils.data.Subset(valtest_dataset, valtest_indices[:len(valtest_indices)//2])
-
-    def custom_collate(batch):
-        # skip audio data
-        filtered_batch = []
-        for video, _, label in batch:
-            filtered_batch.append((video, label))
-        return torch.utils.data.dataloader.default_collate(filtered_batch)
 
    
     train_loader = torch.utils.data.DataLoader(train_subset, batch_size=batch_size, shuffle=True,

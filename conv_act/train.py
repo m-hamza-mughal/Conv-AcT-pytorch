@@ -15,27 +15,32 @@ torch.backends.cudnn.benchmark = False
 def train_model(model, train_loader, val_loader, model_name: str, num_epochs:int, learning_rate: float, finetune: bool = False):
     # Training
     criterion = torch.nn.CrossEntropyLoss(reduction='mean')
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate) #, weight_decay=0.1)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [80, 140, 180, 220, 250], gamma=0.75, verbose=True)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.9)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [100, 140, 180, 220, 250], gamma=0.9, verbose=True)
     device = next(model.parameters()).device
 
     best_model = None
     best_val_acc = 0
 
     if finetune:
-        checkpoint = torch.load(f"logs/{model_name}/best_model.pt")
+        checkpoint = torch.load(f"logs/{model_name}/best_model.pt", map_location=device)
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
+    t_loader = iter(train_loader)
     for epoch in range(num_epochs):
             # TRAINING
             train_loss = 0.0
-            count = 0
+            # count = 0
             model.train()
-            t_loader = iter(train_loader)
             t_correct, t_total = 0, 0
-            for batch in tqdm(range(len(train_loader)), desc=f"Epoch {epoch + 1}", position=0):
-                x, y = next(t_loader)
+            for batch in tqdm(range(1, len(val_loader) +1), desc=f"Epoch {epoch + 1}", position=0):
+                try:
+                    x, y = next(t_loader)
+                except StopIteration:
+                    logging.info("One data cycle complete")
+                    t_loader = iter(train_loader)
+                    x, y = next(t_loader)
                 x, y = x.to(device), y.to(device)
                 y_hat = model(x)
                 loss = criterion(y_hat, y) #/ len(x)
@@ -49,12 +54,12 @@ def train_model(model, train_loader, val_loader, model_name: str, num_epochs:int
                 t_correct += torch.sum(torch.argmax(y_hat, dim=1) == y).detach().cpu().item()
                 t_total += len(y)
                 
-                count+=1
-                if count%1000==0:
-                   logging.info(f"Iter {count}/{len(train_loader)} Train Loss: {train_loss/count} Train accuracy: {t_correct / t_total * 100:.2f}%")
+                # count+=1
+                if batch%1000==0:
+                   logging.info(f"Iter {batch}/{len(val_loader) +1} Train Loss: {train_loss/batch} Train accuracy: {t_correct / t_total * 100:.2f}%")
             
             train_acc = t_correct / t_total * 100
-            train_loss = train_loss/count
+            train_loss = train_loss/batch
             logging.info(f"Epoch {epoch + 1}/{num_epochs} train loss: {train_loss:.2f}")
             logging.info(f"Train accuracy: {train_acc:.2f}%")
 
@@ -92,25 +97,25 @@ def evaluate_model(model, data_loader, criterion):
     val_loss = 0.0
     v_correct, v_total = 0, 0
     model.eval()
-    count = 0
+    # count = 0
 
     with torch.no_grad():
         v_loader = iter(data_loader)
-        for batch in tqdm(range(len(data_loader)), desc="Validating", position=0):
+        for batch in tqdm(range(1, len(data_loader)+1), desc="Validating", position=0):
             x, y = next(v_loader)
             x, y = x.to(device), y.to(device)
             y_hat = model(x)
             loss = criterion(y_hat, y) #/ len(x)
             val_loss += loss.detach().cpu().item()
-            count+=1
+            # count+=1
 
             v_correct += torch.sum(torch.argmax(y_hat, dim=1) == y).detach().cpu().item()
             v_total += len(y)
         
         val_acc = v_correct / v_total * 100
         
-    logging.info(f"Evaluation loss: {val_loss/count:.2f}")
+    logging.info(f"Evaluation loss: {val_loss/batch:.2f}")
     logging.info(f"Evaluation accuracy: {val_acc:.2f}%")
-    return val_loss/count, val_acc
+    return val_loss/batch, val_acc
         
 
