@@ -4,6 +4,7 @@ from tqdm import tqdm
 import logging
 import sys
 import numpy as np
+from fvcore.nn import FlopCountAnalysis
 
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -47,6 +48,9 @@ def test_model(model, data_loader, model_path):
             x, y = next(v_loader)
             x, y = x.to(device), y.to(device)
             y_hat = model(x)
+            if batch==1:
+              flops = FlopCountAnalysis(model, x[0].unsqueeze(0))
+              print("FLOPS:", flops.total())
             loss = criterion(y_hat, y) #/ len(x)
             val_loss += loss.detach().cpu().item()
             # count+=1

@@ -14,7 +14,8 @@ setup(
         "tqdm",
         "numpy",
         "pyyaml",
-        "av"
+        "av",
+        "fvcore"
     ],
     license='MIT',
 )
