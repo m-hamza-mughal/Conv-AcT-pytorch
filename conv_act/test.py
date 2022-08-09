@@ -48,9 +48,9 @@ def test_model(model, data_loader, model_path):
             x, y = next(v_loader)
             x, y = x.to(device), y.to(device)
             y_hat = model(x)
-            if batch==0:
-              flops = FlopCountAnalysis(model, x[0].unsqueeze())
-              print(flops.total())
+            if batch==1:
+              flops = FlopCountAnalysis(model, x[0].unsqueeze(0))
+              print("FLOPS:", flops.total())
             loss = criterion(y_hat, y) #/ len(x)
             val_loss += loss.detach().cpu().item()
             # count+=1
