@@ -4,6 +4,9 @@ from tqdm import tqdm
 import copy
 import logging
 import sys
+import numpy as np
+
+from .test import accuracy
 
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -97,6 +100,8 @@ def evaluate_model(model, data_loader, criterion):
     val_loss = 0.0
     v_correct, v_total = 0, 0
     model.eval()
+
+    accs = np.zeros(2)
     # count = 0
 
     with torch.no_grad():
@@ -109,13 +114,16 @@ def evaluate_model(model, data_loader, criterion):
             val_loss += loss.detach().cpu().item()
             # count+=1
 
-            v_correct += torch.sum(torch.argmax(y_hat, dim=1) == y).detach().cpu().item()
-            v_total += len(y)
+            # v_correct += torch.sum(torch.argmax(y_hat, dim=1) == y).detach().cpu().item()
+            # v_total += len(y)
+
+            accs += accuracy(y_hat, y, topk=(1,5))
         
-        val_acc = v_correct / v_total * 100
-        
+        # val_acc = v_correct / v_total * 100
+    accs = accs/batch
     logging.info(f"Evaluation loss: {val_loss/batch:.2f}")
-    logging.info(f"Evaluation accuracy: {val_acc:.2f}%")
-    return val_loss/batch, val_acc
+    # logging.info(f"Evaluation accuracy: {val_acc:.2f}%")
+    print(f"Evaluation Top1 and Top5 accuracy {accs}") 
+    return val_loss/batch, accs[0]
         
 

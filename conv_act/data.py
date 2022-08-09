@@ -58,7 +58,6 @@ def load_test_dataset(video_path, label_dir, num_samples=-1, num_workers=8, vide
 
 def load_dataset(video_path, label_dir, num_samples=-1, num_workers=8, video_dim=128, chunk_length=60, num_frames=20, batch_size=32):
     
-    
     train_tfs = transforms.Compose([
         transforms.Lambda(lambda x: x.permute(0, 3, 1, 2)),
         transforms.Lambda(lambda x: x[::chunk_length//num_frames]), # skip second frame

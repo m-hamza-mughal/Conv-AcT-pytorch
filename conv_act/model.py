@@ -154,19 +154,24 @@ class ConvAcTransformer(nn.Module):
 
 if __name__ == "__main__":
     # test
+    from fvcore.nn import FlopCountAnalysis
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    test_tensor = torch.randn(4, 3, 3, 128, 128, dtype=torch.float32).to(device)
+    test_tensor = torch.randn(1, 20, 3, 128, 128, dtype=torch.float32).to(device)
     model = ConvAcTransformer(
-        attention_heads=2, 
-        num_layers=2, 
+        attention_heads=4, 
+        num_layers=4, 
         num_classes=50, 
-        num_frames=3, 
-        feature_extractor_name='resnet18', 
+        num_frames=20, 
+        drop_p=0.1,
+        feature_extractor_name='wide_resnet50_2', 
         learnable_pe=False
     )
     print(model)
     model = model.to(device)
     out = model(test_tensor)
+    flops = FlopCountAnalysis(model, test_tensor)
+    print(flops.total())
     print(out.size(), next(model.parameters()).device)
     # diff = out.mean().backward()
     print("done")
