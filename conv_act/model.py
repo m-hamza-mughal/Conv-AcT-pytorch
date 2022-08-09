@@ -159,8 +159,8 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     test_tensor = torch.randn(1, 20, 3, 128, 128, dtype=torch.float32).to(device)
     model = ConvAcTransformer(
-        attention_heads=4, 
-        num_layers=4, 
+        attention_heads=1, 
+        num_layers=1, 
         num_classes=50, 
         num_frames=20, 
         drop_p=0.1,

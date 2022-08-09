@@ -86,7 +86,7 @@ def main(config, pipeline, log_dir):
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Train and Evaluation Pipeline')
-    parser.add_argument('--config', default='config/ucf10_128.yaml', type=str, help='Config path', required=False)
+    parser.add_argument('--config', default='config/ucf50_128_wrn50.yaml', type=str, help='Config path', required=False)
     parser.add_argument('--pipeline', default='train', type=str, help='Specify whether to run training pipeline or testing', required=False)
     parser.add_argument('--logdir', default='logs/', type=str, help='Specify log directory', required=False)
     args = parser.parse_args()
