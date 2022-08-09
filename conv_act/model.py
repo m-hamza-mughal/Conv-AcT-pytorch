@@ -106,7 +106,7 @@ class ConvAcTransformer(nn.Module):
         self.drop_p = drop_p
 
         
-        self.feature_extract = FeatureExtractor(self.d_model, self.feature_extractor_name, model_weights='DEFAULT')
+        self.feature_extract = BaselineMLP(self.d_model) # FeatureExtractor(self.d_model, self.feature_extractor_name, model_weights='DEFAULT')
         self.patch_embed = PatchEmbedding(self.d_model, learnable=self.learnable_pe, max_len=self.num_frames, dropout=self.drop_p)
 
         # transformer_encoder_layer = nn.TransformerEncoderLayer(d_model=self.d_model,
@@ -154,14 +154,16 @@ class ConvAcTransformer(nn.Module):
 
 if __name__ == "__main__":
     # test
+    from fvcore.nn import FlopCountAnalysis
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    test_tensor = torch.randn(4, 3, 3, 128, 128, dtype=torch.float32).to(device)
+    test_tensor = torch.randn(1, 15, 3, 128, 128, dtype=torch.float32).to(device)
     model = ConvAcTransformer(
         d_model=128,
         attention_heads=2, 
         num_layers=2, 
         num_classes=50, 
-        num_frames=3, 
+        num_frames=15, 
         drop_p=0.1,
         feature_extractor_name='resnet18', 
         learnable_pe=False
@@ -169,6 +171,8 @@ if __name__ == "__main__":
     print(model)
     model = model.to(device)
     out = model(test_tensor)
+    flops = FlopCountAnalysis(model, test_tensor)
+    print(flops.total())
     print(out.size(), next(model.parameters()).device)
     # diff = out.mean().backward()
     print("done")
