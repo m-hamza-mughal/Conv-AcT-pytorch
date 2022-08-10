@@ -157,12 +157,12 @@ if __name__ == "__main__":
     from fvcore.nn import FlopCountAnalysis
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    test_tensor = torch.randn(1, 20, 3, 128, 128, dtype=torch.float32).to(device)
+    test_tensor = torch.randn(1, 50, 3, 128, 128, dtype=torch.float32).to(device)
     model = ConvAcTransformer(
-        attention_heads=1, 
-        num_layers=1, 
-        num_classes=50, 
-        num_frames=20, 
+        attention_heads=4, 
+        num_layers=4, 
+        num_classes=101, 
+        num_frames=50, 
         drop_p=0.1,
         feature_extractor_name='wide_resnet50_2', 
         learnable_pe=False
