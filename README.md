@@ -1,4 +1,4 @@
-## Human Activity Recognition (HAR) with Transformer based on Convolutional Features
+# Human Activity Recognition (HAR) with Transformer based on Convolutional Features
 
 This is repository for codebase of [this project](add link here).
 
@@ -6,12 +6,12 @@ This is repository for codebase of [this project](add link here).
 Next few sections detail on how to setup repository, download datasets and get weights hosted on Google Drive. However, you can bypass this and test directly on Google Colab where all of this setup is nicely written in code and has GPU access for testing.
 
 <p align="center">
-    <img src="./imgs/arch.svg" width=50% height=50%>
+    <img src="./imgs/arch.svg" width=60% height=60%>
 </p>
 
 This project aims to perform Human Activity Recognition directly on RGB image frames instead of using 2D Pose Estimations[1]. We use temporal and spatial features extracted from real-life action videos from UCF-50/101 Datasets and use an architecture based on Convolutional Neural Networks (CNN) and Transformer and try to prove that convolutional features perform better than linear projection in usual Vision Transformer.
 <p align="center">
-    <img src="./imgs/cls_tkn.svg" width=50% height=50%>
+    <img src="./imgs/cls_tkn.svg" width=60% height=60%>
 </p>
 
 ### Basic Usage:
@@ -69,7 +69,7 @@ gdown https://drive.google.com/drive/folders/15Rm1K5NahAAq4ZmpLWljgEuNWBTNs95B?u
 ```
 UCF-101 WideResNet-50-2:
 ```
---
+gdown https://drive.google.com/drive/folders/1BRixVCVUyREED86TeK40rtGMXr3qlyVF?usp=sharing -O ./logs/30fr_wrn50_unfrozen --folder
 ```
 If you need weights for other experiments, let us know using email below, we can provide you separately because currently we have space limit on Google Drive.
 
@@ -86,7 +86,7 @@ python main.py --pipeline test --config ./logs/best_model_83_ucf50_wide_resnet50
 ```
 UCF-101 WideResNet-50-2:
 ```
---
+python main.py --pipeline test --config ./logs/30fr_wrn50_unfrozen/config.yaml
 ```
 
 ### Training:

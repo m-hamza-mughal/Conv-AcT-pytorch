@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from torchvision.datasets import UCF101
 from torchvision import transforms
+from torchvision.transforms._transforms_video import CenterCropVideo, NormalizeVideo
 import torchvision
 import random
 import torch
@@ -34,8 +35,19 @@ def load_test_dataset(video_path, label_dir, num_samples=-1, num_workers=8, vide
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         
     ])
-    test_dataset = UCF101(root = video_path, annotation_path = label_dir, transform=test_tfs, train=False, frames_per_clip=chunk_length) #  ,_video_width=video_dim, _video_height=video_dim, 
-
+    if 'UCF-101' in video_path:
+        test_tfs = transforms.Compose([
+            transforms.Lambda(lambda x: x.permute(3, 0, 1, 2)), # THWC -> CTHW
+            transforms.Lambda(lambda x: x/255.0),
+            NormalizeVideo([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+            CenterCropVideo(crop_size=(video_dim, video_dim)),
+            transforms.Lambda(lambda x: x.permute(1, 0, 2, 3)), # CTHW -> TCHW
+            transforms.Lambda(lambda x: x.float()),
+        ])
+        test_dataset = UCF101(root = video_path, annotation_path = label_dir, transform=test_tfs , train=False, frames_per_clip=num_frames, step_between_clips=5, frame_rate = 15)
+    else:
+        test_dataset = UCF101(root = video_path, annotation_path = label_dir, transform=test_tfs, train=False, frames_per_clip=chunk_length) #  ,_video_width=video_dim, _video_height=video_dim, 
+        
     if num_samples != -1:
         # assert num_samples >= 2000
         test_indices = random.sample(list(range(len(test_dataset))), int(num_samples))
