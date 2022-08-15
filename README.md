@@ -1,6 +1,6 @@
 # Human Activity Recognition (HAR) with Transformer based on Convolutional Features
 
-This is repository for codebase of [this project](add link here).
+This is repository for codebase of [this project](https://drive.google.com/file/d/1siob3zeGM6l34CkSx0RkccTs84_T_Q7D/view?usp=sharing).
 
 ### [**Google Colab Testing Playground**](https://colab.research.google.com/drive/1Wmw8CDzSZzch42dq1NpSyO_Th5Kqe--x?usp=sharing)
 Next few sections detail on how to setup repository, download datasets and get weights hosted on Google Drive. However, you can bypass this and test directly on Google Colab where all of this setup is nicely written in code and has GPU access for testing.
