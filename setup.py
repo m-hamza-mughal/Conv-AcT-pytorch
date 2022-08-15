@@ -10,7 +10,7 @@ setup(
     python_requires=">=3.6",
     install_requires=[
         "torch",
-        "torchvision",
+        "torchvision==0.13",
         "tqdm",
         "numpy",
         "pyyaml",
