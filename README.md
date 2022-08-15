@@ -86,6 +86,7 @@ python main.py --pipeline test --config ./logs/best_model_83_ucf50_wide_resnet50
 ```
 UCF-101 WideResNet-50-2:
 ```
+cd Conv-AcT-pytorch/
 python main.py --pipeline test --config ./logs/30fr_wrn50_unfrozen/config.yaml
 ```
 
