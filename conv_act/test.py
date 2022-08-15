@@ -60,7 +60,8 @@ def test_model(model, data_loader, model_path):
 
             
             accs += accuracy(y_hat, y, topk=(1,5))
-            if (batch % 100)==0: print(f"Top1 and Top5 accuracy {accs/batch}") 
+            per_batch = accs/batch
+            if (batch % 100)==0: print(f"Top1 accuracy {per_batch[0]} and Top5 accuracy {per_batch[0]}") 
 
         
         val_acc_top1 = v_correct / v_total * 100
